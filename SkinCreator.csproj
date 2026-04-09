@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+	<PropertyGroup>
+		<OutputType>WinExe</OutputType>
+		<TargetFramework>net9.0-windows7.0</TargetFramework>
+		<UseWindowsForms>true</UseWindowsForms>
+		<ImplicitUsings>enable</ImplicitUsings>
+		<Nullable>enable</Nullable>
+		<AssemblyName>SkinCreator</AssemblyName>
+		<RootNamespace>SkinCreator</RootNamespace>
+		<StartupObject>SkinCreator.Program</StartupObject>
+	</PropertyGroup>
+</Project>
