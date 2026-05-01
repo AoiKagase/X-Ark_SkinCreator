@@ -24,6 +24,7 @@ class CanvasPanel : Panel
 	bool _draggingForm;
 	Point _dragStart;
 	LocationDef? _dragOrigLoc;
+	LocationDef? _dragPreviewLoc;
 	LocationDef? _dragOrigFormOffset;
 	GdiCursors.ResizeDirection _dragMode = GdiCursors.ResizeDirection.None;
 
@@ -127,6 +128,7 @@ class CanvasPanel : Panel
 		if (_selected != null)
 			HandleRenderer.DrawHandles(g, GetDisplayRect(_selected));
 
+		DrawDragPreview(g);
 		DrawZoomIndicator(g);
 	}
 
@@ -362,6 +364,22 @@ class CanvasPanel : Panel
 		g.DrawString(text, font, fore, rect.Left + 5, rect.Top + 2);
 	}
 
+	void DrawDragPreview(Graphics g)
+	{
+		if (_selected == null || _dragPreviewLoc == null)
+			return;
+
+		var rect = GetDisplayRect(_selected, _dragPreviewLoc);
+		if (rect.Width <= 0 || rect.Height <= 0)
+			return;
+
+		using var pen = new Pen(Color.FromArgb(240, 255, 255, 255), 1)
+		{
+			DashStyle = DashStyle.Dash,
+		};
+		g.DrawRectangle(pen, rect);
+	}
+
 	// ── マウス操作 ──
 
 	protected override void OnMouseDown(MouseEventArgs e)
@@ -380,6 +398,7 @@ class CanvasPanel : Panel
 			if (_dragMode != GdiCursors.ResizeDirection.None)
 			{
 				_dragOrigLoc = _selected.Location.Clone();
+				_dragPreviewLoc = _dragOrigLoc.Clone();
 				_dragging = true;
 				return;
 			}
@@ -405,6 +424,7 @@ class CanvasPanel : Panel
 		{
 			_dragMode    = GdiCursors.ResizeDirection.Move;
 			_dragOrigLoc = _selected.Location.Clone();
+			_dragPreviewLoc = _dragOrigLoc.Clone();
 			_dragging    = true;
 		}
 		else
@@ -452,7 +472,10 @@ class CanvasPanel : Panel
 
 		int dx = UnscaleDelta(e.X - _dragStart.X);
 		int dy = UnscaleDelta(e.Y - _dragStart.Y);
-		var loc = _selected.Location;
+		var oldPreviewRect = _dragPreviewLoc != null
+			? InflateForDragPreview(GetDisplayRect(_selected, _dragPreviewLoc))
+			: Rectangle.Empty;
+		var loc = _dragOrigLoc.Clone();
 
 		switch (_dragMode)
 		{
@@ -492,8 +515,11 @@ class CanvasPanel : Panel
 				break;
 		}
 
-		Invalidate();
-		SelectedElementChanged?.Invoke(this, _selected);
+		_dragPreviewLoc = loc;
+		var newPreviewRect = InflateForDragPreview(GetDisplayRect(_selected, _dragPreviewLoc));
+		if (!oldPreviewRect.IsEmpty)
+			Invalidate(oldPreviewRect);
+		Invalidate(newPreviewRect);
 	}
 
 	protected override void OnMouseUp(MouseEventArgs e)
@@ -505,26 +531,30 @@ class CanvasPanel : Panel
 			{
 				_doc.IsDirty = true;
 				_draggingForm = false;
+				_dragPreviewLoc = null;
 				Cursor = System.Windows.Forms.Cursors.Default;
 				return;
 			}
 			_dragging = false;
+			_dragPreviewLoc = null;
 			return;
 		}
 
-		var newLoc = _selected.Location.Clone();
+		var newLoc = (_dragPreviewLoc ?? _selected.Location).Clone();
 		// 実際に移動していない場合はコマンド不要
 		if (newLoc.X != _dragOrigLoc.X || newLoc.Y != _dragOrigLoc.Y ||
 		    newLoc.W != _dragOrigLoc.W || newLoc.H != _dragOrigLoc.H)
 		{
 			var cmd = new Commands.MoveElementCommand(_selected, _dragOrigLoc, newLoc);
-			// Execute はすでに実行済みなので Undo スタックだけに積む
-			_doc.IsDirty = true;
+			_doc.Execute(cmd);
 		}
 
 		_dragging = false;
 		_draggingForm = false;
+		_dragPreviewLoc = null;
 		Cursor = System.Windows.Forms.Cursors.Default;
+		Invalidate();
+		SelectedElementChanged?.Invoke(this, _selected);
 	}
 
 	protected override bool IsInputKey(Keys keyData)
@@ -589,8 +619,11 @@ class CanvasPanel : Panel
 	}
 
 	Rectangle GetDisplayRect(ISkinElement el)
+		=> GetDisplayRect(el, el.Location);
+
+	Rectangle GetDisplayRect(ISkinElement el, LocationDef location)
 	{
-		var rect = GetLogicalRect(el);
+		var rect = GetLogicalRect(el, location);
 		if (_formKey != "MainForm")
 		{
 			var formRect = GetFormLogicalRectangle(_doc!.GetForm(_formKey));
@@ -604,14 +637,23 @@ class CanvasPanel : Panel
 	}
 
 	Rectangle GetLogicalRect(ISkinElement el)
+		=> GetLogicalRect(el, el.Location);
+
+	Rectangle GetLogicalRect(ISkinElement el, LocationDef location)
 	{
-		var rect = el.Location.ToRectangle();
-		if (el is ButtonElement button)
+		var rect = location.ToRectangle();
+		if (el is ButtonElement button && (ReferenceEquals(location, el.Location) || location.W <= 0 || location.H <= 0))
 		{
 			var size = GetButtonVisualSize(button);
 			rect.Width = size.Width;
 			rect.Height = size.Height;
 		}
+		return rect;
+	}
+
+	static Rectangle InflateForDragPreview(Rectangle rect)
+	{
+		rect.Inflate(3, 3);
 		return rect;
 	}
 
