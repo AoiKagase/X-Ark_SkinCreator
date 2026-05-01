@@ -43,7 +43,7 @@ class SpritePickerDialog : Form
 		foreach (var key in doc.Images.Keys) _keyCombo.Items.Add(key);
 
 		// プレビュー
-		_canvas = new SpriteCanvas { Dock = DockStyle.Fill };
+		_canvas = new SpriteCanvas { Left = 0, Top = 0 };
 		_previewContainer = new Panel
 		{
 			Left        = 8,
@@ -55,6 +55,7 @@ class SpritePickerDialog : Form
 			AutoScroll  = true,
 		};
 		_previewContainer.Controls.Add(_canvas);
+		_previewContainer.MouseWheel += (_, e) => _canvas.HandleContainerMouseWheel(e);
 
 		// 矩形入力
 		int numTop = ClientSize.Height - 95;
@@ -158,7 +159,6 @@ class SpritePickerDialog : Form
 		if (_keyCombo.SelectedItem is not string key) return;
 		var bmp = _doc.GetBitmap(key);
 		_canvas.Bitmap = bmp;
-		_canvas.Size   = bmp != null ? bmp.Size : new Size(100, 100);
 	}
 
 	void OnCanvasSelection()
@@ -194,10 +194,14 @@ class SpritePickerDialog : Form
 	// 画像表示 + ゴムバンド矩形選択キャンバス
 	class SpriteCanvas : Control
 	{
+		const float MinZoom = 0.25f;
+		const float MaxZoom = 8.0f;
+
 		Bitmap? _bitmap;
 		Rectangle _selection;
 		bool _drawing;
 		Point _drawStart;
+		float _zoom = 1.0f;
 
 		public event Action? SelectionChanged;
 
@@ -205,7 +209,12 @@ class SpritePickerDialog : Form
 		public Bitmap? Bitmap
 		{
 			get => _bitmap;
-			set { _bitmap = value; Invalidate(); }
+			set
+			{
+				_bitmap = value;
+				UpdateCanvasSize();
+				Invalidate();
+			}
 		}
 
 		[DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
@@ -219,28 +228,34 @@ class SpritePickerDialog : Form
 		{
 			DoubleBuffered = true;
 			Cursor         = System.Windows.Forms.Cursors.Cross;
+			TabStop        = true;
 		}
 
 		protected override void OnPaint(PaintEventArgs e)
 		{
 			var g = e.Graphics;
 			g.Clear(Color.FromArgb(18, 18, 28));
+			g.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.NearestNeighbor;
+			g.PixelOffsetMode = System.Drawing.Drawing2D.PixelOffsetMode.Half;
 
 			if (_bitmap != null)
-				g.DrawImage(_bitmap, Point.Empty);
+				g.DrawImage(_bitmap, new Rectangle(0, 0, ScaleLength(_bitmap.Width), ScaleLength(_bitmap.Height)));
 
 			if (_selection.Width > 0 && _selection.Height > 0)
 			{
 				using var pen = new Pen(Color.Red, 1) { DashStyle = System.Drawing.Drawing2D.DashStyle.Dash };
-				g.DrawRectangle(pen, _selection);
+				g.DrawRectangle(pen, ScaleRect(_selection));
 			}
+
+			DrawZoomIndicator(g);
 		}
 
 		protected override void OnMouseDown(MouseEventArgs e)
 		{
 			if (e.Button != MouseButtons.Left) return;
+			Focus();
 			_drawing   = true;
-			_drawStart = e.Location;
+			_drawStart = ToImagePoint(e.Location);
 			_selection = Rectangle.Empty;
 			Invalidate();
 		}
@@ -248,10 +263,11 @@ class SpritePickerDialog : Form
 		protected override void OnMouseMove(MouseEventArgs e)
 		{
 			if (!_drawing) return;
-			int x = Math.Min(e.X, _drawStart.X);
-			int y = Math.Min(e.Y, _drawStart.Y);
-			int w = Math.Abs(e.X - _drawStart.X);
-			int h = Math.Abs(e.Y - _drawStart.Y);
+			var imagePoint = ToImagePoint(e.Location);
+			int x = Math.Min(imagePoint.X, _drawStart.X);
+			int y = Math.Min(imagePoint.Y, _drawStart.Y);
+			int w = Math.Abs(imagePoint.X - _drawStart.X);
+			int h = Math.Abs(imagePoint.Y - _drawStart.Y);
 			_selection = new Rectangle(x, y, w, h);
 			Invalidate();
 			SelectionChanged?.Invoke();
@@ -261,6 +277,92 @@ class SpritePickerDialog : Form
 		{
 			_drawing = false;
 			SelectionChanged?.Invoke();
+		}
+
+		protected override void OnMouseEnter(EventArgs e)
+		{
+			base.OnMouseEnter(e);
+			Focus();
+		}
+
+		protected override void OnMouseWheel(MouseEventArgs e)
+		{
+			if ((ModifierKeys & Keys.Control) != Keys.Control)
+			{
+				base.OnMouseWheel(e);
+				return;
+			}
+
+			ZoomAt(e.Location, e.Delta > 0 ? 1 : -1);
+		}
+
+		public void HandleContainerMouseWheel(MouseEventArgs e)
+		{
+			if ((ModifierKeys & Keys.Control) != Keys.Control)
+				return;
+
+			ZoomAt(PointToClient(Parent!.PointToScreen(e.Location)), e.Delta > 0 ? 1 : -1);
+		}
+
+		void ZoomAt(Point mouseLocation, int direction)
+		{
+			var oldZoom = _zoom;
+			_zoom = Math.Clamp(_zoom * (direction > 0 ? 1.1f : 1 / 1.1f), MinZoom, MaxZoom);
+			if (Math.Abs(_zoom - oldZoom) < 0.001f)
+				return;
+
+			UpdateCanvasSize();
+			Invalidate();
+			KeepMouseAnchorAfterZoom(mouseLocation, oldZoom);
+		}
+
+		void UpdateCanvasSize()
+		{
+			var sourceSize = _bitmap?.Size ?? new Size(100, 100);
+			Size = new Size(ScaleLength(sourceSize.Width), ScaleLength(sourceSize.Height));
+		}
+
+		Point ToImagePoint(Point displayPoint) => new(
+			Math.Max(0, (int)Math.Floor(displayPoint.X / _zoom)),
+			Math.Max(0, (int)Math.Floor(displayPoint.Y / _zoom)));
+
+		Rectangle ScaleRect(Rectangle rect) => new(
+			ScaleCoordinate(rect.X),
+			ScaleCoordinate(rect.Y),
+			ScaleLength(rect.Width),
+			ScaleLength(rect.Height));
+
+		int ScaleCoordinate(int value) => (int)Math.Round(value * _zoom, MidpointRounding.AwayFromZero);
+
+		int ScaleLength(int value) => Math.Max(1, (int)Math.Round(value * _zoom, MidpointRounding.AwayFromZero));
+
+		void KeepMouseAnchorAfterZoom(Point mouseLocation, float oldZoom)
+		{
+			if (Parent is not ScrollableControl scroll)
+				return;
+
+			var oldScroll = new Point(-scroll.AutoScrollPosition.X, -scroll.AutoScrollPosition.Y);
+			var logicalX = (oldScroll.X + mouseLocation.X) / oldZoom;
+			var logicalY = (oldScroll.Y + mouseLocation.Y) / oldZoom;
+			scroll.AutoScrollPosition = new Point(
+				Math.Max(0, (int)Math.Round(logicalX * _zoom - mouseLocation.X)),
+				Math.Max(0, (int)Math.Round(logicalY * _zoom - mouseLocation.Y)));
+		}
+
+		void DrawZoomIndicator(Graphics g)
+		{
+			var text = $"{_zoom * 100:0}%";
+			using var font = new Font(Font.FontFamily, 9, FontStyle.Regular, GraphicsUnit.Point);
+			var size = g.MeasureString(text, font);
+			var rect = new RectangleF(
+				Width - size.Width - 18,
+				8,
+				size.Width + 10,
+				size.Height + 4);
+			using var back = new SolidBrush(Color.FromArgb(180, 0, 0, 0));
+			using var fore = new SolidBrush(Color.White);
+			g.FillRectangle(back, rect);
+			g.DrawString(text, font, fore, rect.Left + 5, rect.Top + 2);
 		}
 	}
 }

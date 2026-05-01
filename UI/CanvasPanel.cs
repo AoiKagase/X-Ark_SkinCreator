@@ -11,11 +11,14 @@ namespace SkinCreator.UI;
 class CanvasPanel : Panel
 {
 	const int CanvasMargin = 16;
+	const float MinZoom = 0.25f;
+	const float MaxZoom = 8.0f;
 
 	SkinDocument? _doc;
 	string _formKey = "MainForm";
 	ISkinElement? _selected;
 	Point _viewOrigin;
+	float _zoom = 1.0f;
 
 	bool _dragging;
 	bool _draggingForm;
@@ -30,6 +33,7 @@ class CanvasPanel : Panel
 	{
 		DoubleBuffered = true;
 		BackColor      = Color.FromArgb(18, 18, 28);
+		TabStop        = true;
 	}
 
 	public void Bind(SkinDocument? doc, string formKey)
@@ -73,8 +77,8 @@ class CanvasPanel : Panel
 		if (_formKey == "MainForm")
 		{
 			var form = _doc.MainForm;
-			int w = Math.Max(form.Location.W, 100) + CanvasMargin * 2;
-			int h = Math.Max(form.Location.H, 100) + CanvasMargin * 2;
+			int w = ScaleLength(Math.Max(form.Location.W, 100) + CanvasMargin * 2);
+			int h = ScaleLength(Math.Max(form.Location.H, 100) + CanvasMargin * 2);
 			_viewOrigin = new Point(CanvasMargin, CanvasMargin);
 			Size = new Size(w, h);
 			return;
@@ -87,8 +91,9 @@ class CanvasPanel : Panel
 		int right = Math.Max(_doc.MainForm.Location.W, offset.X + Math.Max(subForm.Location.W, 1));
 		int bottom = Math.Max(_doc.MainForm.Location.H, offset.Y + Math.Max(subForm.Location.H, 1));
 		_viewOrigin = new Point(CanvasMargin - left, CanvasMargin - top);
-		Size = new Size(Math.Max(right - left, 100) + CanvasMargin * 2,
-			Math.Max(bottom - top, 100) + CanvasMargin * 2);
+		Size = new Size(
+			ScaleLength(Math.Max(right - left, 100) + CanvasMargin * 2),
+			ScaleLength(Math.Max(bottom - top, 100) + CanvasMargin * 2));
 	}
 
 	protected override void OnPaint(PaintEventArgs e)
@@ -121,6 +126,8 @@ class CanvasPanel : Panel
 		// 選択ハンドル
 		if (_selected != null)
 			HandleRenderer.DrawHandles(g, GetDisplayRect(_selected));
+
+		DrawZoomIndicator(g);
 	}
 
 	void DrawForm(Graphics g, FormDef form, Rectangle rect)
@@ -130,7 +137,7 @@ class CanvasPanel : Panel
 			using var bg = _doc!.CropBitmap(form.BackgroundSrc);
 			if (bg != null)
 			{
-				g.DrawImage(bg, rect.Location);
+				g.DrawImage(bg, rect);
 				return;
 			}
 		}
@@ -203,7 +210,7 @@ class CanvasPanel : Panel
 		using var img = _doc!.CropBitmap(b.Up);
 		if (img != null)
 		{
-			g.DrawImage(img, rect.Location);
+			g.DrawImage(img, rect);
 			return;
 		}
 		DrawTintedRect(g, rect, Color.FromArgb(80, 200, 100, 0), b.ElementKey);
@@ -214,7 +221,12 @@ class CanvasPanel : Panel
 		using var img = _doc!.CropBitmap(s.Src);
 		if (img != null)
 		{
-			g.DrawImage(img, rect.Location);
+			var imageRect = new Rectangle(
+				rect.X,
+				rect.Y,
+				ScaleLength(img.Width),
+				ScaleLength(img.Height));
+			g.DrawImage(img, imageRect);
 			return;
 		}
 		DrawTintedRect(g, rect, Color.FromArgb(80, 0, 100, 200), s.ElementKey);
@@ -229,7 +241,7 @@ class CanvasPanel : Panel
 		if (l.Bold)   style |= FontStyle.Bold;
 		if (l.Italic) style |= FontStyle.Italic;
 
-		using var font = new Font(l.Font, Math.Max(l.Size, 6), style, GraphicsUnit.Point);
+		using var font = new Font(l.Font, Math.Max(l.Size * _zoom, 6), style, GraphicsUnit.Point);
 		using var fore = new SolidBrush(ColorHelper.FromHex(l.ForeColor, Color.White));
 		var sf = new StringFormat
 		{
@@ -253,7 +265,7 @@ class CanvasPanel : Panel
 
 	void DrawPicture(Graphics g, PictureElement p, Rectangle rect)
 	{
-		var radius = Math.Max(0, p.CornerRadius);
+		var radius = Math.Max(0, p.CornerRadius * _zoom);
 		var oldSmoothing = g.SmoothingMode;
 		if (radius > 0)
 			g.SmoothingMode = SmoothingMode.AntiAlias;
@@ -266,7 +278,7 @@ class CanvasPanel : Panel
 		using var img = _doc!.CropBitmap(p.Src);
 		if (img != null)
 		{
-			g.DrawImage(img, rect.Location);
+			g.DrawImage(img, rect);
 		}
 		else
 		{
@@ -277,14 +289,15 @@ class CanvasPanel : Panel
 
 		if (p.BorderWidth > 0 && p.BorderColor != null)
 		{
-			var inset = p.BorderWidth / 2f;
+			var borderWidth = Math.Max(1, (int)Math.Round(p.BorderWidth * _zoom, MidpointRounding.AwayFromZero));
+			var inset = borderWidth / 2f;
 			var borderRect = new RectangleF(
 				rect.X + inset,
 				rect.Y + inset,
-				Math.Max(0, rect.Width - p.BorderWidth),
-				Math.Max(0, rect.Height - p.BorderWidth));
+				Math.Max(0, rect.Width - borderWidth),
+				Math.Max(0, rect.Height - borderWidth));
 			using var borderPath = CreateRoundPath(borderRect, Math.Max(0, radius - inset));
-			using var pen = new Pen(ColorHelper.FromHex(p.BorderColor), p.BorderWidth);
+			using var pen = new Pen(ColorHelper.FromHex(p.BorderColor), borderWidth);
 			g.DrawPath(pen, borderPath);
 		}
 
@@ -328,8 +341,25 @@ class CanvasPanel : Panel
 		{
 			using var fore = new SolidBrush(Color.White);
 			var sf = new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center, Trimming = StringTrimming.EllipsisCharacter };
-			g.DrawString(label, Font, fore, rect, sf);
+			using var font = new Font(Font.FontFamily, Math.Max(Font.Size * _zoom, 6), Font.Style, GraphicsUnit.Point);
+			g.DrawString(label, font, fore, rect, sf);
 		}
+	}
+
+	void DrawZoomIndicator(Graphics g)
+	{
+		var text = $"{_zoom * 100:0}%";
+		using var font = new Font(Font.FontFamily, 9, FontStyle.Regular, GraphicsUnit.Point);
+		var size = g.MeasureString(text, font);
+		var rect = new RectangleF(
+			Width - size.Width - 18,
+			8,
+			size.Width + 10,
+			size.Height + 4);
+		using var back = new SolidBrush(Color.FromArgb(180, 0, 0, 0));
+		using var fore = new SolidBrush(Color.White);
+		g.FillRectangle(back, rect);
+		g.DrawString(text, font, fore, rect.Left + 5, rect.Top + 2);
 	}
 
 	// ── マウス操作 ──
@@ -340,6 +370,7 @@ class CanvasPanel : Panel
 		if (_doc == null || e.Button != MouseButtons.Left)
 			return;
 
+		Focus();
 		_dragStart = e.Location;
 
 		// ハンドル当たり判定
@@ -408,8 +439,8 @@ class CanvasPanel : Panel
 		{
 			var form = _doc.GetForm(_formKey);
 			form.Offset ??= new LocationDef();
-			form.Offset.X = (_dragOrigFormOffset?.X ?? 0) + (e.X - _dragStart.X);
-			form.Offset.Y = (_dragOrigFormOffset?.Y ?? 0) + (e.Y - _dragStart.Y);
+			form.Offset.X = (_dragOrigFormOffset?.X ?? 0) + UnscaleDelta(e.X - _dragStart.X);
+			form.Offset.Y = (_dragOrigFormOffset?.Y ?? 0) + UnscaleDelta(e.Y - _dragStart.Y);
 			UpdateSize();
 			Invalidate();
 			SelectedElementChanged?.Invoke(this, null);
@@ -419,8 +450,8 @@ class CanvasPanel : Panel
 		if (!_dragging || _selected == null || _dragOrigLoc == null)
 			return;
 
-		int dx = e.X - _dragStart.X;
-		int dy = e.Y - _dragStart.Y;
+		int dx = UnscaleDelta(e.X - _dragStart.X);
+		int dy = UnscaleDelta(e.Y - _dragStart.Y);
 		var loc = _selected.Location;
 
 		switch (_dragMode)
@@ -532,19 +563,44 @@ class CanvasPanel : Panel
 		e.Handled = true;
 	}
 
+	protected override void OnMouseEnter(EventArgs e)
+	{
+		base.OnMouseEnter(e);
+		Focus();
+	}
+
+	protected override void OnMouseWheel(MouseEventArgs e)
+	{
+		if ((ModifierKeys & Keys.Control) != Keys.Control)
+		{
+			base.OnMouseWheel(e);
+			return;
+		}
+
+		var oldZoom = _zoom;
+		var direction = e.Delta > 0 ? 1 : -1;
+		_zoom = Math.Clamp(_zoom * (direction > 0 ? 1.1f : 1 / 1.1f), MinZoom, MaxZoom);
+		if (Math.Abs(_zoom - oldZoom) < 0.001f)
+			return;
+
+		UpdateSize();
+		Invalidate();
+		KeepMouseAnchorAfterZoom(e.Location, oldZoom);
+	}
+
 	Rectangle GetDisplayRect(ISkinElement el)
 	{
 		var rect = GetLogicalRect(el);
 		if (_formKey != "MainForm")
 		{
-			var formRect = GetFormDisplayRectangle(_doc!.GetForm(_formKey));
+			var formRect = GetFormLogicalRectangle(_doc!.GetForm(_formKey));
 			rect.Offset(formRect.Left, formRect.Top);
 		}
 		else
 		{
 			rect.Offset(_viewOrigin);
 		}
-		return rect;
+		return ScaleRect(rect);
 	}
 
 	Rectangle GetLogicalRect(ISkinElement el)
@@ -582,6 +638,9 @@ class CanvasPanel : Panel
 	}
 
 	Rectangle GetFormDisplayRectangle(FormDef form)
+		=> ScaleRect(GetFormLogicalRectangle(form));
+
+	Rectangle GetFormLogicalRectangle(FormDef form)
 	{
 		var rect = new Rectangle(0, 0, Math.Max(form.Location.W, 1), Math.Max(form.Location.H, 1));
 		if (form.FormKey == "MainForm")
@@ -593,5 +652,30 @@ class CanvasPanel : Panel
 		var offset = form.Offset ?? new LocationDef();
 		rect.Offset(_viewOrigin.X + offset.X, _viewOrigin.Y + offset.Y);
 		return rect;
+	}
+
+	Rectangle ScaleRect(Rectangle rect) => new(
+		ScaleCoordinate(rect.X),
+		ScaleCoordinate(rect.Y),
+		ScaleLength(rect.Width),
+		ScaleLength(rect.Height));
+
+	int ScaleCoordinate(int value) => (int)Math.Round(value * _zoom, MidpointRounding.AwayFromZero);
+
+	int ScaleLength(int value) => Math.Max(1, (int)Math.Round(value * _zoom, MidpointRounding.AwayFromZero));
+
+	int UnscaleDelta(int value) => (int)Math.Round(value / _zoom, MidpointRounding.AwayFromZero);
+
+	void KeepMouseAnchorAfterZoom(Point mouseLocation, float oldZoom)
+	{
+		if (Parent is not ScrollableControl scroll)
+			return;
+
+		var oldScroll = new Point(-scroll.AutoScrollPosition.X, -scroll.AutoScrollPosition.Y);
+		var logicalX = (oldScroll.X + mouseLocation.X) / oldZoom;
+		var logicalY = (oldScroll.Y + mouseLocation.Y) / oldZoom;
+		scroll.AutoScrollPosition = new Point(
+			Math.Max(0, (int)Math.Round(logicalX * _zoom - mouseLocation.X)),
+			Math.Max(0, (int)Math.Round(logicalY * _zoom - mouseLocation.Y)));
 	}
 }
