@@ -127,6 +127,10 @@ static class SkinDocumentJsonBridge
 			foreach (var kv in j.Labels)
 				f.Labels.Add(ConvertLabel(kv.Key, kv.Value));
 
+		if (j.Sliders != null)
+			foreach (var kv in j.Sliders)
+				f.Sliders.Add(ConvertSlider(kv.Key, kv.Value));
+
 		if (j.Grids != null)
 			foreach (var kv in j.Grids)
 				f.Grids.Add(ConvertGrid(kv.Key, kv.Value));
@@ -172,6 +176,7 @@ static class SkinDocumentJsonBridge
 		Italic       = j.Italic,
 		ForeColor    = j.ForeColor ?? "FFFFFF",
 		BackColor    = j.BackColor ?? "000000",
+		Align        = NormalizeAlign(j.Align),
 		ScrollEnable = j.ScrollEnable,
 		ScrollVector = j.ScrollVector,
 		Interval     = j.Interval > 0 ? j.Interval : 50,
@@ -285,6 +290,8 @@ static class SkinDocumentJsonBridge
 			j.Buttons = f.Buttons.ToDictionary(b => b.ElementKey, ToButtonJson);
 		if (f.Labels.Count > 0)
 			j.Labels = f.Labels.ToDictionary(l => l.ElementKey, ToLabelJson);
+		if (f.Sliders.Count > 0)
+			j.Sliders = f.Sliders.ToDictionary(s => s.ElementKey, ToSliderJson);
 		if (f.Grids.Count > 0)
 			j.Grids = f.Grids.ToDictionary(g => g.ElementKey, ToGridJson);
 		if (f.Pictures.Count > 0)
@@ -323,6 +330,7 @@ static class SkinDocumentJsonBridge
 		Italic       = l.Italic,
 		ForeColor    = l.ForeColor,
 		BackColor    = l.BackColor,
+		Align        = l.Align,
 		ScrollEnable = l.ScrollEnable,
 		ScrollVector = l.ScrollVector,
 		Interval     = l.Interval,
@@ -388,4 +396,12 @@ static class SkinDocumentJsonBridge
 		if (l == null) return null;
 		return new LocationJson { X = l.X, Y = l.Y, W = l.W, H = l.H };
 	}
+
+	static string NormalizeAlign(string? align) =>
+		align?.Trim().ToLowerInvariant() switch
+		{
+			"center" => "center",
+			"right" => "right",
+			_ => "left",
+		};
 }

@@ -26,6 +26,7 @@ public partial class MainEditorForm : Form
 		["PlayListForm"] = new()
 		{
 			[ElementType.Button] = ["PBtnOpen", "PBtnSave", "PBtnRemove", "PBtnUp", "PBtnDown", "PBtnClose", "PBtnClear"],
+			[ElementType.Grid] = ["PlayListGrid"],
 		},
 		["MiniPlayerForm"] = new()
 		{
@@ -35,6 +36,13 @@ public partial class MainEditorForm : Form
 		},
 		["FileInfoForm"] = new()
 		{
+			[ElementType.Label] =
+			[
+				"lblFileNameVal", "lblFormatVal", "lblBitVal", "lblLengthVal", "lblSampleRateVal", "lblChannelVal",
+				"lblTitleKey", "lblArtistKey", "lblAlbumKey", "lblYearKey", "lblTrackKey", "lblFileNameKey",
+				"lblFormatKey", "lblChannelKey", "lblSampleRateKey", "lblBitKey", "lblTitleVal", "lblArtistVal",
+				"lblAlbumVal", "lblYearVal", "lblTrackVal", "lblLengthKey"
+			],
 			[ElementType.Picture] = ["picCover"],
 		},
 	};

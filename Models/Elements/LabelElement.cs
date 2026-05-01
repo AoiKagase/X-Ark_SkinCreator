@@ -9,6 +9,7 @@ class LabelElement : SkinElementBase
 	public bool Italic { get; set; }
 	public string ForeColor { get; set; } = "FFFFFF";
 	public string BackColor { get; set; } = "000000";
+	public string Align { get; set; } = "left";
 	public bool ScrollEnable { get; set; }
 	public int ScrollVector { get; set; } = 3;
 	public int Interval { get; set; } = 50;

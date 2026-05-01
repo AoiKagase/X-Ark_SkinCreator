@@ -97,6 +97,8 @@ class PropertyPanel : ScrollableControl
 		AddBoolField(ref y, "Italic", l.Italic, v => { l.Italic = v; Notify(); });
 		AddColorField(ref y, "ForeColor", l.ForeColor, v => { l.ForeColor = v; Notify(); });
 		AddColorField(ref y, "BackColor", l.BackColor, v => { l.BackColor = v; Notify(); });
+		AddComboField(ref y, "Align", ["left", "center", "right"], l.Align,
+			v => { l.Align = v; Notify(); });
 		AddBoolField(ref y, "ScrollEnable", l.ScrollEnable, v => { l.ScrollEnable = v; Notify(); });
 		AddComboField(ref y, "ScrollVector", ["0", "1", "2", "3"], l.ScrollVector.ToString(),
 			v => { if (int.TryParse(v, out var n)) { l.ScrollVector = n; Notify(); } });

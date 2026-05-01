@@ -231,9 +231,25 @@ class CanvasPanel : Panel
 
 		using var font = new Font(l.Font, Math.Max(l.Size, 6), style, GraphicsUnit.Point);
 		using var fore = new SolidBrush(ColorHelper.FromHex(l.ForeColor, Color.White));
-		var sf = new StringFormat { Trimming = StringTrimming.EllipsisCharacter, FormatFlags = StringFormatFlags.NoWrap };
-		g.DrawString(l.ElementKey, font, fore, rect, sf);
+		var sf = new StringFormat
+		{
+			Trimming = StringTrimming.EllipsisCharacter,
+			FormatFlags = StringFormatFlags.NoWrap,
+			Alignment = l.Align switch
+			{
+				"center" => StringAlignment.Center,
+				"right" => StringAlignment.Far,
+				_ => StringAlignment.Near,
+			},
+			LineAlignment = StringAlignment.Center,
+		};
+		g.DrawString(GetLabelPreviewText(l), font, fore, rect, sf);
 	}
+
+	static string GetLabelPreviewText(LabelElement label) =>
+		label.ElementKey.Equals("LabelTime", StringComparison.OrdinalIgnoreCase)
+			? "00:00:00/00:00:00"
+			: label.ElementKey;
 
 	void DrawPicture(Graphics g, PictureElement p, Rectangle rect)
 	{

@@ -74,6 +74,7 @@ class LabelJson
 	[JsonPropertyName("italic")]       public bool          Italic       { get; set; }
 	[JsonPropertyName("foreColor")]    public string?       ForeColor    { get; set; }
 	[JsonPropertyName("backColor")]    public string?       BackColor    { get; set; }
+	[JsonPropertyName("align")]        public string?       Align        { get; set; }
 	[JsonPropertyName("scrollEnable")] public bool          ScrollEnable { get; set; }
 	[JsonPropertyName("scrollVector")] public int           ScrollVector { get; set; } = 3;
 	[JsonPropertyName("interval")]     public int           Interval     { get; set; }
@@ -151,6 +152,7 @@ class SubFormJson
 	[JsonPropertyName("font")]      public string?         Font      { get; set; }
 	[JsonPropertyName("fontSize")]  public int             FontSize  { get; set; }
 	[JsonPropertyName("buttons")]   public Dictionary<string, ButtonJson>? Buttons { get; set; }
+	[JsonPropertyName("sliders")]   public Dictionary<string, SliderJson>? Sliders { get; set; }
 	[JsonPropertyName("labels")]    public Dictionary<string, LabelJson>?  Labels  { get; set; }
 	[JsonPropertyName("grids")]     public Dictionary<string, GridJson>?   Grids   { get; set; }
 	[JsonPropertyName("pictures")]  public Dictionary<string, PictureJson>? Pictures { get; set; }
