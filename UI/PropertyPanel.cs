@@ -34,6 +34,7 @@ class PropertyPanel : ScrollableControl
 		SuspendLayout();
 		try
 		{
+			ResetScrollPosition();
 			ClearPropertyControls();
 			int y = 8;
 
@@ -62,7 +63,13 @@ class PropertyPanel : ScrollableControl
 		finally
 		{
 			ResumeLayout();
+			ResetScrollPosition();
 		}
+	}
+
+	void ResetScrollPosition()
+	{
+		AutoScrollPosition = Point.Empty;
 	}
 
 	void ClearPropertyControls()

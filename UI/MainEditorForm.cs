@@ -154,7 +154,7 @@ public partial class MainEditorForm : Form
 		if (_doc?.IsDirty != true)
 			return true;
 
-		var res = MessageBox.Show("変更が保存されていません。破棄しますか？", "確認",
+		var res = MessageBox.Show("変更が保存されていません。保存しますか？", "確認",
 			MessageBoxButtons.YesNoCancel, MessageBoxIcon.Question);
 		if (res == DialogResult.Yes)
 			return SaveDocument(false);
