@@ -21,6 +21,7 @@ public partial class MainEditorForm : Form
 			[ElementType.Label] = ["LabelTitle", "LabelTime"],
 			[ElementType.Spectrum] = ["spectrum"],
 			[ElementType.WaveArea] = ["waveArea"],
+			[ElementType.Picture] = ["picCover"],
 		},
 		["PlayListForm"] = new()
 		{
@@ -237,7 +238,9 @@ public partial class MainEditorForm : Form
 			ElementType.Label    => new LabelElement    { ElementKey = key, Location = new() { W = 100, H = 20 } },
 			ElementType.Spectrum => new SpectrumElement { ElementKey = key, Location = new() { W = 100, H = 50 } },
 			ElementType.WaveArea => new WaveAreaElement { ElementKey = key, Location = new() { W = 100, H = 20 } },
-			ElementType.Picture  => new PictureElement  { ElementKey = key, Location = new() { W = 50, H = 50 } },
+			ElementType.Picture  => key == "picCover"
+				? new PictureElement { ElementKey = key, Location = new() { W = 120, H = 120 }, CornerRadius = 12 }
+				: new PictureElement { ElementKey = key, Location = new() { W = 50, H = 50 } },
 			ElementType.Grid     => new GridElement     { ElementKey = key, Location = new() { W = 200, H = 150 } },
 			_ => throw new InvalidOperationException(),
 		};

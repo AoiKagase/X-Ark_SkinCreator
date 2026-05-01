@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.Drawing;
 using System.Windows.Forms;
 using SkinCreator.Models;
@@ -20,6 +21,7 @@ class FormTabStrip : Panel
 
 	public event EventHandler<string>? FormKeyChanged;
 
+	[DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
 	public string ActiveFormKey
 	{
 		get => _activeFormKey;

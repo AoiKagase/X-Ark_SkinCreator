@@ -1,4 +1,5 @@
 using System.Drawing;
+using System.Drawing.Drawing2D;
 using System.Windows.Forms;
 using SkinCreator.Helpers;
 using SkinCreator.Models;
@@ -236,6 +237,16 @@ class CanvasPanel : Panel
 
 	void DrawPicture(Graphics g, PictureElement p, Rectangle rect)
 	{
+		var radius = Math.Max(0, p.CornerRadius);
+		var oldSmoothing = g.SmoothingMode;
+		if (radius > 0)
+			g.SmoothingMode = SmoothingMode.AntiAlias;
+
+		using var path = CreateRoundPath(rect, radius);
+		var state = g.Save();
+		if (radius > 0)
+			g.SetClip(path);
+
 		using var img = _doc!.CropBitmap(p.Src);
 		if (img != null)
 		{
@@ -246,12 +257,48 @@ class CanvasPanel : Panel
 			using var back = new SolidBrush(ColorHelper.FromHex(p.Color));
 			g.FillRectangle(back, rect);
 		}
+		g.Restore(state);
 
 		if (p.BorderWidth > 0 && p.BorderColor != null)
 		{
+			var inset = p.BorderWidth / 2f;
+			var borderRect = new RectangleF(
+				rect.X + inset,
+				rect.Y + inset,
+				Math.Max(0, rect.Width - p.BorderWidth),
+				Math.Max(0, rect.Height - p.BorderWidth));
+			using var borderPath = CreateRoundPath(borderRect, Math.Max(0, radius - inset));
 			using var pen = new Pen(ColorHelper.FromHex(p.BorderColor), p.BorderWidth);
-			g.DrawRectangle(pen, rect);
+			g.DrawPath(pen, borderPath);
 		}
+
+		g.SmoothingMode = oldSmoothing;
+	}
+
+	static GraphicsPath CreateRoundPath(Rectangle rect, float radius)
+		=> CreateRoundPath(new RectangleF(rect.X, rect.Y, rect.Width, rect.Height), radius);
+
+	static GraphicsPath CreateRoundPath(RectangleF rect, float radius)
+	{
+		var path = new GraphicsPath();
+		if (rect.Width <= 0 || rect.Height <= 0)
+			return path;
+
+		radius = Math.Min(radius, Math.Min(rect.Width, rect.Height) / 2f);
+		if (radius <= 0)
+		{
+			path.AddRectangle(rect);
+			path.CloseFigure();
+			return path;
+		}
+
+		float diameter = radius * 2f;
+		path.AddArc(rect.X, rect.Y, diameter, diameter, 180, 90);
+		path.AddArc(rect.Right - diameter, rect.Y, diameter, diameter, 270, 90);
+		path.AddArc(rect.Right - diameter, rect.Bottom - diameter, diameter, diameter, 0, 90);
+		path.AddArc(rect.X, rect.Bottom - diameter, diameter, diameter, 90, 90);
+		path.CloseFigure();
+		return path;
 	}
 
 	void DrawTintedRect(Graphics g, Rectangle rect, Color tint, string label)

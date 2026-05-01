@@ -112,6 +112,7 @@ class PictureJson
 	[JsonPropertyName("location")]    public LocationJson?   Location    { get; set; }
 	[JsonPropertyName("borderColor")] public string?         BorderColor { get; set; }
 	[JsonPropertyName("borderWidth")] public int             BorderWidth { get; set; }
+	[JsonPropertyName("cornerRadius")] public int            CornerRadius { get; set; }
 	[JsonPropertyName("isDisabled")]  public bool            IsDisabled  { get; set; }
 }
 

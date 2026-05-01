@@ -7,4 +7,5 @@ class PictureElement : SkinElementBase
 	public string Color { get; set; } = "000000";
 	public string? BorderColor { get; set; }
 	public int BorderWidth { get; set; }
+	public int CornerRadius { get; set; }
 }

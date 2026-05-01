@@ -213,6 +213,7 @@ static class SkinDocumentJsonBridge
 		Color       = j.Color ?? "000000",
 		BorderColor = j.BorderColor,
 		BorderWidth = j.BorderWidth,
+		CornerRadius = j.CornerRadius,
 	};
 
 	static GridElement ConvertGrid(string key, GridJson j) => new()
@@ -360,6 +361,7 @@ static class SkinDocumentJsonBridge
 		Color       = p.Color,
 		BorderColor = p.BorderColor,
 		BorderWidth = p.BorderWidth,
+		CornerRadius = p.CornerRadius,
 		IsDisabled  = p.IsDisabled,
 	};
 

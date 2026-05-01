@@ -131,6 +131,7 @@ class PropertyPanel : ScrollableControl
 		AddColorField(ref y, "Color", p.Color, v => { p.Color = v; Notify(); });
 		AddColorField(ref y, "BorderColor", p.BorderColor, v => { p.BorderColor = v; Notify(); });
 		AddIntField(ref y, "BorderWidth", p.BorderWidth, 0, 20, v => { p.BorderWidth = v; Notify(); });
+		AddIntField(ref y, "CornerRadius", p.CornerRadius, 0, 999, v => { p.CornerRadius = v; Notify(); });
 	}
 
 	void BuildGridProps(ref int y, GridElement g)

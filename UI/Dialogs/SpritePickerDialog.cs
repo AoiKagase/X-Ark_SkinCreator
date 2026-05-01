@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.Drawing;
 using System.Windows.Forms;
 using SkinCreator.Helpers;
@@ -200,12 +201,14 @@ class SpritePickerDialog : Form
 
 		public event Action? SelectionChanged;
 
+		[DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
 		public Bitmap? Bitmap
 		{
 			get => _bitmap;
 			set { _bitmap = value; Invalidate(); }
 		}
 
+		[DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
 		public Rectangle Selection
 		{
 			get => _selection;
