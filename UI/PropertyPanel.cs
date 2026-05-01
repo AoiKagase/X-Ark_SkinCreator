@@ -295,20 +295,46 @@ class PropertyPanel : ScrollableControl
 			ForeColor = Color.White,
 			BorderStyle = BorderStyle.FixedSingle,
 		};
+		preview.Paint += (_, e) =>
+		{
+			if (!IsTransparentColorText(box.Text))
+				return;
+
+			DrawTransparentPreview(e.Graphics, preview.ClientRectangle);
+		};
 		box.TextChanged += (_, __) =>
 		{
 			preview.BackColor = ColorHelper.FromHex(box.Text, Color.Black);
+			preview.Invalidate();
 			onChanged(box.Text.Trim());
 		};
 		preview.Click += (_, __) =>
 		{
-			using var dlg = new ColorDialog { Color = preview.BackColor, FullOpen = true };
+			using var dlg = new ColorDialog { Color = IsTransparentColorText(box.Text) ? Color.Black : preview.BackColor, FullOpen = true };
 			if (dlg.ShowDialog(this) != DialogResult.OK)
 				return;
 			box.Text = ColorHelper.ToHex(dlg.Color);
 		};
 		Controls.AddRange([lbl, preview, box]);
 		y += 24;
+	}
+
+	static bool IsTransparentColorText(string? text) =>
+		string.Equals(text?.Trim(), "Transparent", StringComparison.OrdinalIgnoreCase);
+
+	static void DrawTransparentPreview(Graphics g, Rectangle rect)
+	{
+		const int cell = 5;
+		using var light = new SolidBrush(Color.FromArgb(230, 230, 230));
+		using var dark = new SolidBrush(Color.FromArgb(150, 150, 150));
+		for (var y = rect.Top; y < rect.Bottom; y += cell)
+		{
+			for (var x = rect.Left; x < rect.Right; x += cell)
+			{
+				var brush = ((x / cell) + (y / cell)) % 2 == 0 ? light : dark;
+				g.FillRectangle(brush, x, y, cell, cell);
+			}
+		}
 	}
 
 	void AddIntField(ref int y, string label, int value, int min, int max, Action<int> onChanged)

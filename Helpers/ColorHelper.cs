@@ -10,6 +10,10 @@ static class ColorHelper
 			return fallback == default ? Color.Black : fallback;
 		try
 		{
+			hex = hex.Trim();
+			if (string.Equals(hex, "Transparent", StringComparison.OrdinalIgnoreCase))
+				return Color.Transparent;
+
 			hex = hex.TrimStart('#');
 			if (hex.Length == 6)
 			{
