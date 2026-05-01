@@ -32,33 +32,45 @@ class PropertyPanel : ScrollableControl
 	void Rebuild()
 	{
 		SuspendLayout();
-		Controls.Clear();
-		int y = 8;
-
-		if (_current == null)
+		try
 		{
-			if (_form != null)
-				BuildFormProps(ref y, _form);
+			ClearPropertyControls();
+			int y = 8;
+
+			if (_current == null)
+			{
+				if (_form != null)
+					BuildFormProps(ref y, _form);
+				return;
+			}
+
+			AddHeader(ref y, _current.ElementKey + " (" + _current.Type + ")");
+			AddBoolField(ref y, "IsDisabled", _current.IsDisabled, v => { _current.IsDisabled = v; Notify(); });
+			AddLocationSection(ref y, _current.Location, editableSize: _current is not ButtonElement);
+
+			switch (_current)
+			{
+				case ButtonElement b:   BuildButtonProps(ref y, b);   break;
+				case SliderElement s:   BuildSliderProps(ref y, s);   break;
+				case LabelElement l:    BuildLabelProps(ref y, l);    break;
+				case SpectrumElement sp: BuildSpectrumProps(ref y, sp); break;
+				case WaveAreaElement w: BuildWaveAreaProps(ref y, w); break;
+				case PictureElement p:  BuildPictureProps(ref y, p);  break;
+				case GridElement g:     BuildGridProps(ref y, g);     break;
+			}
+		}
+		finally
+		{
 			ResumeLayout();
-			return;
 		}
+	}
 
-		AddHeader(ref y, _current.ElementKey + " (" + _current.Type + ")");
-		AddBoolField(ref y, "IsDisabled", _current.IsDisabled, v => { _current.IsDisabled = v; Notify(); });
-		AddLocationSection(ref y, _current.Location, editableSize: _current is not ButtonElement);
-
-		switch (_current)
-		{
-			case ButtonElement b:   BuildButtonProps(ref y, b);   break;
-			case SliderElement s:   BuildSliderProps(ref y, s);   break;
-			case LabelElement l:    BuildLabelProps(ref y, l);    break;
-			case SpectrumElement sp: BuildSpectrumProps(ref y, sp); break;
-			case WaveAreaElement w: BuildWaveAreaProps(ref y, w); break;
-			case PictureElement p:  BuildPictureProps(ref y, p);  break;
-			case GridElement g:     BuildGridProps(ref y, g);     break;
-		}
-
-		ResumeLayout();
+	void ClearPropertyControls()
+	{
+		var oldControls = Controls.Cast<Control>().ToArray();
+		Controls.Clear();
+		foreach (var control in oldControls)
+			control.Dispose();
 	}
 
 	void BuildButtonProps(ref int y, ButtonElement b)
