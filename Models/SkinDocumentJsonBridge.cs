@@ -175,7 +175,7 @@ static class SkinDocumentJsonBridge
 		Bold         = j.Bold,
 		Italic       = j.Italic,
 		ForeColor    = j.ForeColor ?? "FFFFFF",
-		BackColor    = j.BackColor ?? "000000",
+		BackColor    = j.BackColor ?? "Transparent",
 		Align        = NormalizeAlign(j.Align),
 		ScrollEnable = j.ScrollEnable,
 		ScrollVector = j.ScrollVector,
